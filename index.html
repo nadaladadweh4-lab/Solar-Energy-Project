@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Energy Project</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <style>
+        :root {
+            --autumn-orange: #D2691E;
+            --autumn-red: #8B4513;
+            --autumn-yellow: #DAA520;
+            --autumn-brown: #A0522D;
+            --autumn-dark: #654321;
+            --autumn-light: #FFF8DC;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Cairo', Tahoma, sans-serif;
+            overflow: hidden;
+            background: var(--autumn-light);
+        }
+        
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, #FFF8DC 0%, #FAEBD7 100%);
+            box-shadow: -4px 0 24px rgba(139, 69, 19, 0.3);
+            border-left: 3px solid var(--autumn-orange);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .sidebar-header {
+            background: linear-gradient(135deg, var(--autumn-orange), var(--autumn-red));
+            color: white;
+            padding: 25px 22px;
+            box-shadow: 0 4px 12px rgba(139, 69, 19, 0.2);
+        }
+        
+        .sidebar-header h2 {
+            font-size: 1.5em;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .sidebar-content {
+            padding: 20px;
+        }
+        
+        .section-title {
+            color: var(--autumn-brown);
+            font-size: 0.95em;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            letter-spacing: 0.8px;
+            border-bottom: 2px solid var(--autumn-orange);
+            padding-bottom: 8px;
+        }
+        
+        /* Close Button */
+        .close-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 1.6em;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            line-height: 1;
+        }
+        
+        .close-btn:hover {
+            background: rgba(255,255,255,0.35);
+            transform: rotate(90deg) scale(1.1);
+        }
+        
+        .layer-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 2px solid transparent;
+            box-shadow: 0 2px 8px rgba(139, 69, 19, 0.1);
+        }
+        
+        .layer-item:hover {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateX(-5px);
+            border-color: var(--autumn-yellow);
+        }
+        
+        .layer-item.active {
+            background: linear-gradient(135deg, var(--autumn-orange), var(--autumn-red));
+            color: white;
+            box-shadow: 0 4px 16px rgba(139, 69, 19, 0.4);
+            border-color: var(--autumn-dark);
+        }
+        
+        .layer-checkbox {
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+            border: 2px solid var(--autumn-brown);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .layer-item.active .layer-checkbox {
+            background: white;
+            border-color: white;
+        }
+        
+        .layer-item.active .layer-checkbox::after {
+            content: '✓';
+            color: var(--autumn-orange);
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .layer-name {
+            flex: 1;
+            font-weight: 600;
+        }
+        
+        /* Attribute Panel - Bottom Horizontal Table */
+        .attribute-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 320px;
+            width: auto;
+            height: 280px;
+            background: linear-gradient(180deg, #FAEBD7 0%, #FFF8DC 100%);
+            box-shadow: 0 -4px 24px rgba(139, 69, 19, 0.4);
+            border-top: 3px solid var(--autumn-orange);
+            z-index: 999;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            animation: slideUpPanel 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes slideUpPanel {
+            0% {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .attribute-panel.show {
+            display: flex;
+        }
+        
+        .panel-header {
+            background: linear-gradient(135deg, var(--autumn-orange), var(--autumn-red));
+            color: white;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(139, 69, 19, 0.3);
+            flex-shrink: 0;
+        }
+        
+        .panel-header h3 {
+            margin: 0;
+            font-size: 1.2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .panel-content {
+            padding: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex: 1;
+            background: white;
+        }
+        
+        /* Horizontal Info Table */
+        .info-table-horizontal {
+            display: flex;
+            height: 100%;
+            min-width: max-content;
+        }
+        
+        .info-column {
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+            border-left: 2px solid rgba(139, 69, 19, 0.15);
+        }
+        
+        .info-column:first-child {
+            border-left: none;
+        }
+        
+        .info-cell-label {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, var(--autumn-brown), var(--autumn-dark));
+            color: white;
+            font-weight: bold;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+            text-align: center;
+            border-bottom: 2px solid var(--autumn-orange);
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .info-cell-value {
+            padding: 20px;
+            color: var(--autumn-dark);
+            font-size: 1.05em;
+            font-weight: 500;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: white;
+            transition: background 0.2s;
+        }
+        
+        .info-column:hover .info-cell-value {
+            background: rgba(218, 165, 32, 0.08);
+        }
+        
+        /* Scrollbar */
+        .sidebar::-webkit-scrollbar,
+        .panel-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb,
+        .panel-content::-webkit-scrollbar-thumb {
+            background: var(--autumn-orange);
+            border-radius: 10px;
+        }
+        
+        .sidebar::-webkit-scrollbar-track,
+        .panel-content::-webkit-scrollbar-track {
+            background: rgba(139, 69, 19, 0.1);
+            border-radius: 10px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: calc(100% - 40px);
+                max-height: 350px;
+            }
+            
+            .attribute-panel {
+                width: calc(100% - 40px);
+            }
+        }
+        
+        /* Leaflet Controls */
+        .leaflet-control-zoom a {
+            background: var(--autumn-light) !important;
+            color: var(--autumn-brown) !important;
+            font-weight: bold !important;
+            border: 2px solid var(--autumn-orange) !important;
+        }
+        
+        .leaflet-control-zoom a:hover {
+            background: var(--autumn-orange) !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>طبقات الخريطة</h2>
+        </div>
+        <div class="sidebar-content">
+            <div class="section-title">الطبقات المتاحة</div>
+            <div id="layerList"></div>
+        </div>
+    </div>
+    
+    <!-- Attribute Panel -->
+    <div class="attribute-panel" id="attributePanel">
+        <div class="panel-header">
+            <h3>
+                <span>📋</span>
+                <span id="panelTitle">معلومات القطعة</span>
+            </h3>
+            <button class="close-btn" onclick="closePanel()">×</button>
+        </div>
+        <div class="panel-content" id="panelContent"></div>
+    </div>
+
+    <script>
+        // ==================== الإعدادات ====================
+        const CONFIG = {
+            center: [31.9, 35.2],  // إحداثيات رام الله
+            zoom: 13,
+            layers: [
+                {
+                    name: "المحافظات",
+                    nameEn: "Governorates",
+                    file: "Governorates.geojson",
+                    color: "#FFFFFF",      // أبيض
+                    fillColor: "transparent",  // شفاف من الداخل
+                    fillOpacity: 0,
+                    weight: 3,
+                    isOutlineOnly: true,
+                    startActive: true  // تشتغل من البداية
+                },
+                
+                {
+                    name: "قطع الأراضي المختارة",
+                    nameEn: "Selected Parcels",
+                    file: "Parcels.geojson",
+                    color: "#C17817",      // بني ذهبي
+                    fillColor: "#E6A23C",  // ذهبي فاتح
+                    fillOpacity: 0.4,
+                    weight: 2,
+                    startActive: true  // تشتغل من البداية
+                },
+                {
+                    name: "المناطق المناسبة",
+                    nameEn: "Suitable Areas",
+                    file: "Suitable_Areas.geojson",
+                    color: "#8B6914",      // بني غامق
+                    fillColor: "#CD853F",  // بيرو
+                    fillOpacity: 0.4,
+                    weight: 2,
+                    startActive: true  // تشتغل من البداية
+                }
+            ]
+        };
+        
+        // ==================== المتغيرات العامة ====================
+        let map;
+        let loadedLayers = new Map();
+        let selectedLayer = null;  // للطبقة المحددة
+        let governoratesBounds = null; // لحفظ حدود المحافظات
+        
+        // ترتيب الحقول المطلوب
+        const FIELD_ORDER = [
+            'Plot_NO',
+            'BLOCK_NO',
+            'BLOCK_A',
+            'VILLAGE_A',
+            'GovernorateName_Arabic_02',
+            'ValueName_Arabic',
+            'LandClassi',
+            'ParcelAreaD',
+            'SuitableAreaD',
+            'Net_Util_Rate'
+        ];
+        
+        // ==================== تهيئة الخريطة ====================
+        function initMap() {
+            console.log('🗺️ تهيئة الخريطة...');
+            
+            // إنشاء الخريطة
+            map = L.map('map', {
+                center: CONFIG.center,
+                zoom: CONFIG.zoom,
+                zoomControl: true
+            });
+            
+            // إضافة خريطة ستالايت من Esri (مجانية بدون API key)
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                minZoom: 0,
+                maxZoom: 19,
+                attribution: '© Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+            }).addTo(map);
+            
+            console.log('✓ تم إنشاء الخريطة');
+        }
+        
+        // ==================== تحميل الطبقات ====================
+        async function loadLayers() {
+            console.log('📁 جاري تحميل الطبقات...');
+            
+            const layerList = document.getElementById('layerList');
+            layerList.innerHTML = '';
+            
+            for (let i = 0; i < CONFIG.layers.length; i++) {
+                const layerConfig = CONFIG.layers[i];
+                
+                // إنشاء عنصر القائمة
+                const layerItem = createLayerItem(layerConfig, i);
+                layerList.appendChild(layerItem);
+                
+                // تحميل الطبقة
+                try {
+                    const layer = await loadGeoJSON(layerConfig, i);
+                    if (layer) {
+                        const isActive = layerConfig.startActive !== false; // افتراضياً true إذا لم يتم تحديده
+                        
+                        loadedLayers.set(i, {
+                            layer: layer,
+                            config: layerConfig,
+                            active: isActive
+                        });
+                        
+                        // إضافة الطبقة للخريطة فقط إذا كانت نشطة
+                        if (isActive) {
+                            layer.addTo(map);
+                            layerItem.classList.add('active');
+                        } else {
+                            layerItem.classList.remove('active');
+                        }
+                        
+                        console.log(`✓ تم تحميل: ${layerConfig.name}`);
+                        
+                        // إذا كانت طبقة المحافظات، احفظ حدودها
+                        if (i === 0) {
+                            governoratesBounds = layer.getBounds();
+                            // تثبيت الزوم على حدود المحافظات
+                            map.fitBounds(governoratesBounds, { padding: [50, 50] });
+                        }
+                    }
+                } catch (error) {
+                    console.error(`❌ فشل تحميل ${layerConfig.name}:`, error);
+                    layerItem.remove();
+                }
+            }
+        }
+        
+        // ==================== تحميل GeoJSON ====================
+        async function loadGeoJSON(config, layerIndex) {
+            try {
+                const response = await fetch(config.file);
+                
+                if (!response.ok) {
+                    throw new Error(`الملف غير موجود: ${config.file}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data || !data.features) {
+                    throw new Error('تنسيق GeoJSON غير صحيح');
+                }
+                
+                // إنشاء الطبقة
+                const layer = L.geoJSON(data, {
+                    style: {
+                        color: config.color,
+                        fillColor: config.fillColor || config.color,
+                        weight: config.weight || 2,
+                        fillOpacity: config.fillOpacity || 0
+                    },
+                    onEachFeature: function(feature, layer) {
+                        // إذا كانت طبقة حدود فقط، أضف Label فقط
+                        if (config.isOutlineOnly) {
+                            // إضافة Label للمحافظة
+                            if (feature.properties.GovernorateName_English_02) {
+                                const center = layer.getBounds().getCenter();
+                                const label = L.marker(center, {
+                                    icon: L.divIcon({
+                                        className: 'governorate-label',
+                                        html: `<div style="
+                                            color: white;
+                                            font-size: 18px;
+                                            font-weight: bold;
+                                            text-shadow: 2px 2px 6px rgba(0,0,0,0.9), -1px -1px 3px rgba(0,0,0,0.8);
+                                            white-space: nowrap;
+                                            pointer-events: none;
+                                        ">${feature.properties.GovernorateName_English_02}</div>`,
+                                        iconSize: [0, 0]
+                                    })
+                                }).addTo(map);
+                                
+                                // ربط الLabel بالطبقة لإخفائه عند إخفاء الطبقة
+                                if (!config._labels) config._labels = [];
+                                config._labels.push(label);
+                            }
+                            return;
+                        }
+                        
+                        // عند النقر
+                        layer.on('click', function(e) {
+                            L.DomEvent.stopPropagation(e);
+                            
+                            // إزالة التحديد السابق
+                            if (selectedLayer) {
+                                const oldConfig = selectedLayer._config;
+                                selectedLayer.setStyle({
+                                    color: oldConfig.color,
+                                    fillColor: oldConfig.fillColor || oldConfig.color,
+                                    weight: oldConfig.weight || 2,
+                                    fillOpacity: oldConfig.fillOpacity
+                                });
+                            }
+                            
+                            // تحديد العنصر الجديد
+                            this.setStyle({
+                                color: '#FF6B35',      // برتقالي محروق
+                                fillColor: '#FFD700',  // ذهبي لامع
+                                weight: 4,
+                                fillOpacity: 0.7
+                            });
+                            
+                            // حفظ المرجع مع الإعدادات
+                            selectedLayer = this;
+                            selectedLayer._config = config;
+                            
+                            // رفع المناطق المناسبة فوق القطع
+                            if (layerIndex === 3) { // المناطق المناسبة
+                                this.bringToFront();
+                            }
+                            
+                            // التكبير على العنصر
+                            map.fitBounds(this.getBounds(), {
+                                padding: [100, 100],
+                                maxZoom: 17
+                            });
+                            
+                            // عرض المعلومات
+                            showAttributes(feature.properties, config.name);
+                        });
+                        
+                        // عند التحويم
+                        layer.on('mouseover', function() {
+                            if (this !== selectedLayer) {
+                                this.setStyle({
+                                    weight: (config.weight || 2) + 1,
+                                    fillOpacity: config.fillOpacity + 0.2
+                                });
+                            }
+                            
+                            // رفع المناطق المناسبة فوق القطع عند التحويم
+                            if (layerIndex === 3) { // المناطق المناسبة
+                                this.bringToFront();
+                            }
+                        });
+                        
+                        layer.on('mouseout', function() {
+                            if (this !== selectedLayer) {
+                                this.setStyle({
+                                    weight: config.weight || 2,
+                                    fillOpacity: config.fillOpacity
+                                });
+                            }
+                        });
+                    }
+                });
+                
+                // التأكد من أن المناطق المناسبة دائماً فوق القطع
+                if (layerIndex === 3) {
+                    setTimeout(() => {
+                        layer.bringToFront();
+                    }, 100);
+                }
+                
+                return layer;
+                
+            } catch (error) {
+                console.error('خطأ في تحميل GeoJSON:', error);
+                return null;
+            }
+        }
+        
+        // ==================== إنشاء عنصر الطبقة ====================
+        function createLayerItem(config, index) {
+            const item = document.createElement('div');
+            item.className = 'layer-item';
+            item.innerHTML = `
+                <div class="layer-checkbox"></div>
+                <span class="layer-name">${config.name}</span>
+            `;
+            
+            item.onclick = function() {
+                toggleLayer(index, item);
+            };
+            
+            return item;
+        }
+        
+        // ==================== تبديل الطبقة ====================
+        function toggleLayer(index, element) {
+            const layerData = loadedLayers.get(index);
+            if (!layerData) return;
+            
+            if (layerData.active) {
+                // إخفاء
+                map.removeLayer(layerData.layer);
+                element.classList.remove('active');
+                layerData.active = false;
+                
+                // إخفاء Labels إذا وجدت
+                if (layerData.config._labels) {
+                    layerData.config._labels.forEach(label => map.removeLayer(label));
+                }
+            } else {
+                // إظهار
+                layerData.layer.addTo(map);
+                element.classList.add('active');
+                layerData.active = true;
+                
+                // إظهار Labels إذا وجدت
+                if (layerData.config._labels) {
+                    layerData.config._labels.forEach(label => label.addTo(map));
+                }
+                
+                // التأكد من أن المناطق المناسبة فوق القطع
+                if (index === 3) {
+                    setTimeout(() => {
+                        layerData.layer.bringToFront();
+                    }, 50);
+                }
+            }
+            
+            loadedLayers.set(index, layerData);
+        }
+        
+        // ==================== عرض الصفات كجدول أفقي ====================
+        function showAttributes(properties, layerName) {
+            const panel = document.getElementById('attributePanel');
+            const content = document.getElementById('panelContent');
+            const title = document.getElementById('panelTitle');
+            
+            if (!properties || Object.keys(properties).length === 0) {
+                alert('لا توجد معلومات لهذا العنصر');
+                return;
+            }
+            
+            // الحقول المخفية
+            const hiddenFields = ['Shape_Length', 'Shape_Area', 'Join_Count', 'TARGET_FID', 'Shape_Area_1', 'OBJECTID', 'Net_Util_Rate1'];
+            
+            // تحديث العنوان
+            title.textContent = layerName || 'معلومات العنصر';
+            
+            // بناء الجدول الأفقي بالترتيب المحدد
+            let tableHTML = '<div class="info-table-horizontal">';
+            
+            // عرض الحقول حسب الترتيب المحدد
+            for (let fieldName of FIELD_ORDER) {
+                // التحقق من وجود الحقل في البيانات
+                if (properties.hasOwnProperty(fieldName)) {
+                    const value = properties[fieldName];
+                    
+                    // تخطي القيم الفارغة
+                    if (value === null || value === undefined || value === '') {
+                        continue;
+                    }
+                    
+                    tableHTML += `
+                        <div class="info-column">
+                            <div class="info-cell-label">${getFieldDisplayName(fieldName)}</div>
+                            <div class="info-cell-value">${formatValue(value, fieldName)}</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            // إضافة أي حقول إضافية غير موجودة في القائمة
+            for (let key in properties) {
+                if (!FIELD_ORDER.includes(key) && !hiddenFields.includes(key)) {
+                    const value = properties[key];
+                    
+                    // تخطي القيم الفارغة
+                    if (value === null || value === undefined || value === '') {
+                        continue;
+                    }
+                    
+                    tableHTML += `
+                        <div class="info-column">
+                            <div class="info-cell-label">${getFieldDisplayName(key)}</div>
+                            <div class="info-cell-value">${formatValue(value, key)}</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            tableHTML += '</div>';
+            
+            content.innerHTML = tableHTML;
+            panel.classList.add('show');
+        }
+        
+        // ==================== أسماء الحقول بالإنجليزي ====================
+        function getFieldDisplayName(fieldName) {
+            const fieldNames = {
+                'Plot_NO': 'Parcel Number',
+                'BLOCK_NO': 'Block Number',
+                'BLOCK_A': 'Block Name',
+                'VILLAGE_A': 'Village Name',
+                'GovernorateName_Arabic_02': 'Governorate Name',
+                'ValueName_Arabic': 'Parcel Type',
+                'LandClassi': 'Land Classification',
+                'ParcelAreaD': 'Parcel Area (Dunam)',
+                'SuitableAreaD': 'Suitable Area (Dunam)',
+                'Net_Util_Rate': 'Net Utilization Ratio (%)'
+            };
+            
+            return fieldNames[fieldName] || formatKey(fieldName);
+        }
+        
+        // ==================== إغلاق لوحة الصفات ====================
+        function closePanel() {
+            document.getElementById('attributePanel').classList.remove('show');
+            
+            // إزالة التحديد
+            if (selectedLayer && selectedLayer._config) {
+                const config = selectedLayer._config;
+                selectedLayer.setStyle({
+                    color: config.color,
+                    fillColor: config.fillColor || config.color,
+                    weight: config.weight || 2,
+                    fillOpacity: config.fillOpacity
+                });
+                selectedLayer = null;
+            }
+        }
+        
+        // ==================== تنسيق المفاتيح ====================
+        function formatKey(key) {
+            return key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
+        }
+        
+        // ==================== تنسيق القيم ====================
+        function formatValue(value, fieldName) {
+            // الحقول التي يجب عرضها بالأرقام العربية
+            const arabicNumberFields = ['Plot_NO', 'Net_Util_Rate'];
+            
+            if (typeof value === 'number') {
+                // إذا كان الحقل من الحقول المطلوب عرضها بالأرقام العربية
+                if (arabicNumberFields.includes(fieldName)) {
+                    return value.toLocaleString('ar-EG');
+                }
+                // باقي الأرقام تبقى إنجليزية
+                return value.toLocaleString('en-US');
+            }
+            return String(value);
+        }
+        
+        // ==================== بدء التطبيق ====================
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 بدء التطبيق...');
+            
+            initMap();
+            await loadLayers();
+            
+            console.log('✅ التطبيق جاهز!');
+        });
+        
+        // إغلاق اللوحة بزر Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closePanel();
+            }
+        });
+        
+        
+    </script>
+</body>
+</html>
